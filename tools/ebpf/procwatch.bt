@@ -1,0 +1,19 @@
+#!/usr/bin/env bpftrace
+/*
+  ProcWatch eBPF trace (requires bpftrace + root)
+  Usage:
+    sudo bpftrace procwatch.bt > /tmp/procwatch_ebpf.jsonl
+  The Flask app can read the file via /api/ebpf/events.
+*/
+
+tracepoint:syscalls:sys_enter_execve
+{
+  printf("{\"ts\":%d,\"type\":\"execve\",\"pid\":%d,\"uid\":%d,\"comm\":\"%s\",\"filename\":\"%s\"}\n",
+    nsecs/1000000000, pid, uid, comm, str(args->filename));
+}
+
+tracepoint:syscalls:sys_enter_connect
+{
+  printf("{\"ts\":%d,\"type\":\"connect\",\"pid\":%d,\"uid\":%d,\"comm\":\"%s\"}\n",
+    nsecs/1000000000, pid, uid, comm);
+}

@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>ProcWatch</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/animejs@3.2.2/lib/anime.min.js"></script>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+  </head>
+
+  <body class="min-h-screen bg-slate-950 text-slate-100">
+    <div class="noise"></div>
+    <div class="orb orb-a"></div>
+    <div class="orb orb-b"></div>
+
+    <header class="border-b border-white/8 bg-slate-950/70 backdrop-blur-xl supports-[backdrop-filter]:bg-slate-950/55">
+      <div class="mx-auto max-w-[1500px] px-4 py-5 sm:px-6 lg:px-8">
+        <div class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div class="flex items-start gap-4">
+            <div class="brand-mark">
+              <span>PW</span>
+            </div>
+            <div>
+              <div class="flex flex-wrap items-center gap-3">
+                <h1 class="text-2xl font-semibold tracking-tight text-white">ProcWatch</h1>
+                <span class="top-badge">Surveillance locale</span>
+              </div>
+              <p class="mt-1 max-w-3xl text-sm leading-6 text-slate-300">
+                Tableau de bord des processus Debian. Classement visuel par catégorie, recherche rapide, tri temps réel et panneau d’analyse détaillé.
+              </p>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-3 xl:justify-end">
+            <div class="status-chip">
+              <span id="liveDot" class="status-dot"></span>
+              <span>Flux</span>
+            </div>
+            <div class="status-chip mono">
+              <span class="text-slate-400">Dernière mise à jour</span>
+              <span id="lastUpdate">--:--:--</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+      <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <article class="stat-card stat-card-all">
+          <div class="stat-label">Processus affichés</div>
+          <div id="statTotal" class="stat-value">0</div>
+          <div class="stat-meta">Selon les filtres actifs</div>
+        </article>
+        <article class="stat-card stat-card-blue">
+          <div class="stat-label">Système</div>
+          <div id="statSystem" class="stat-value">0</div>
+          <div class="stat-meta">Services, démons, root, threads noyau</div>
+        </article>
+        <article class="stat-card stat-card-green">
+          <div class="stat-label">Applications</div>
+          <div id="statApps" class="stat-value">0</div>
+          <div class="stat-meta">Processus utilisateur usuels</div>
+        </article>
+        <article class="stat-card stat-card-red">
+          <div class="stat-label">Suspects</div>
+          <div id="statSuspicious" class="stat-value">0</div>
+          <div id="statSuspiciousMeta" class="stat-meta">Heuristique seulement</div>
+        </article>
+      </section>
+
+      <section class="panel mt-4 lg:mt-6">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title">Contrôles</h2>
+            <p class="panel-subtitle">Filtres, tri, export et outils d’analyse.</p>
+          </div>
+          <div class="legend-grid">
+            <div class="chip chip-blue">Système</div>
+            <div class="chip chip-green">Applications</div>
+            <div class="chip chip-yellow">Commandes</div>
+            <div class="chip chip-red">Suspect</div>
+          </div>
+        </div>
+
+        <div class="controls-grid">
+          <label class="field field-search">
+            <span class="label">Recherche</span>
+            <input id="search" class="input" placeholder="pid, nom, user, chemin, commande…" />
+          </label>
+
+          <label class="field">
+            <span class="label">Catégorie</span>
+            <select id="category" class="select">
+              <option value="all">Toutes</option>
+              <option value="system">Système</option>
+              <option value="apps">Applications</option>
+              <option value="commands">Commandes</option>
+              <option value="suspicious">Suspect</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span class="label">Tri</span>
+            <select id="sort" class="select">
+              <option value="cpu">CPU</option>
+              <option value="mem">RAM</option>
+              <option value="pid">PID</option>
+              <option value="name">Nom</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span class="label">Limite</span>
+            <input id="limit" type="number" min="50" max="2000" value="300" class="input" />
+          </label>
+
+          <div class="field field-range">
+            <span class="label">Actualisation</span>
+            <div class="range-wrap">
+              <input id="interval" type="range" min="500" max="5000" step="250" value="1500" class="range" />
+              <span id="intervalLabel" class="range-value">1500 ms</span>
+            </div>
+          </div>
+
+          <div class="field field-actions">
+            <span class="label">Actions</span>
+            <div class="actions-row">
+              <button id="pause" class="btn btn-ghost">Pause</button>
+              <button id="refresh" class="btn btn-primary">Rafraîchir</button>
+            </div>
+          </div>
+
+          <div class="field field-admin">
+            <span class="label">Admin token (optionnel)</span>
+            <input id="adminToken" class="input" type="password" placeholder="requis pour allowlist/kill/suspend/renice" />
+          </div>
+
+          <div class="field field-tools">
+            <span class="label">Outils</span>
+            <div class="actions-row">
+              <button id="btnExportJson" class="btn btn-ghost">Export JSON</button>
+              <button id="btnExportCsv" class="btn btn-ghost">Export CSV</button>
+              <button id="btnDiff" class="btn btn-ghost">Diff</button>
+              <button id="btnAudit" class="btn btn-ghost">Auditd</button>
+              <button id="btnEbpf" class="btn btn-ghost">eBPF</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="note" class="notice mt-4"></div>
+      </section>
+
+      <section class="content-grid mt-4 lg:mt-6">
+        <div class="panel table-panel">
+          <div class="panel-header panel-header-stretch">
+            <div>
+              <h2 class="panel-title">Liste des processus</h2>
+              <p class="panel-subtitle">Triable, consultable et enfin lisible sans collision ridicule entre les blocs.</p>
+            </div>
+            <div class="table-meta">
+              <span class="mini-pill"><span class="text-slate-400">Résultats</span> <strong id="resultCount">0</strong></span>
+              <span class="mini-pill"><span class="text-slate-400">Mode</span> <strong id="currentMode">CPU</strong></span>
+            </div>
+          </div>
+
+          <div class="table-shell">
+            <div class="table-head">
+              <div>PID</div>
+              <div>Processus</div>
+              <div>Utilisateur</div>
+              <div>CPU%</div>
+              <div>RAM%</div>
+              <div>Type</div>
+              <div>Statut</div>
+              <div class="col-path">Chemin / commande</div>
+            </div>
+            <div id="rows" class="table-body"></div>
+          </div>
+        </div>
+
+        <aside class="details-stack">
+          <section class="panel details-panel">
+            <div class="panel-header">
+              <div>
+                <h2 class="panel-title">Inspection</h2>
+                <p class="panel-subtitle">Clique une ligne pour afficher le processus sélectionné.</p>
+              </div>
+            </div>
+            <div id="detailCard" class="detail-card">
+              <div class="empty-state">
+                <div class="empty-state-title">Aucune sélection</div>
+                <p class="empty-state-text">Sélectionne un processus dans le tableau pour afficher ses détails techniques, la commande et les raisons d’alerte éventuelles.</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel details-panel">
+            <div class="panel-header">
+              <div>
+                <h2 class="panel-title">Interprétation</h2>
+                <p class="panel-subtitle">Le rouge signale des anomalies plausibles. Vérifie toujours avec d’autres sources (journaux, réseau, intégrité).</p>
+              </div>
+            </div>
+            <ul class="hint-list">
+              <li>Rouge = heuristique simple. Exemple : exécutable lancé depuis <span class="mono">/tmp</span> ou binaire supprimé mais toujours actif.</li>
+              <li>Certains champs peuvent être masqués sans privilèges suffisants.</li>
+              <li>Pour une analyse sérieuse, recoupe avec journaux, connexions réseau, intégrité système et outils dédiés.</li>
+            </ul>
+          </section>
+        </aside>
+      </section>
+    </main>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+  </body>
+</html>
